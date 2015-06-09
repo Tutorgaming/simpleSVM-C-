@@ -63,7 +63,7 @@ void options(){
 	param.coef0 = 0;
 	param.nu = 0.5;
 	param.cache_size = 100;
-	param.C = 1;
+	param.C = 100; //DEFAULT 1
 	param.eps = 1e-3;
 	param.p = 0.1;
 	param.shrinking = 1;
@@ -347,7 +347,7 @@ int main()
 	const char *out_file = output_file_name.c_str();
 	FILE *output = fopen(out_file,"w");
     //====================================
-    x = (struct svm_node *) malloc(max_nr_attr*sizeof(struct svm_node));f
+    x = (struct svm_node *) malloc(max_nr_attr*sizeof(struct svm_node));
     predict(input_test,output);
 
 
