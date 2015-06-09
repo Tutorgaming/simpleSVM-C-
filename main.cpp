@@ -13,7 +13,9 @@ struct svm_parameter param;		// set by parse_command_line
 struct svm_problem prob;
 struct svm_model *model;
 struct svm_node *x_space;
+
 struct svm_node *x;
+
 static char *line = NULL;
 static int max_line_len;
 string input_file_name;
@@ -192,23 +194,26 @@ void predict(FILE *input, FILE *output)
 	int nr_class=svm_get_nr_class(model);
 	double *prob_estimates=NULL;
 	int j;
+// In this Simple Machine We don't use probability Predict
 
-//	if(predict_probability)
-//	{
-//		if (svm_type==NU_SVR || svm_type==EPSILON_SVR)
-//			info("Prob. model for test data: target value = predicted value + z,\nz: Laplace distribution e^(-|z|/sigma)/(2sigma),sigma=%g\n",svm_get_svr_probability(model));
-//		else
-//		{
-			int *labels=(int *) malloc(nr_class*sizeof(int));
-			svm_get_labels(model,labels);
-			prob_estimates = (double *) malloc(nr_class*sizeof(double));
-			fprintf(output,"labels");
-			for(j=0;j<nr_class;j++)
-				fprintf(output," %d",labels[j]);
-			fprintf(output,"\n");
-			free(labels);
-//		}
-//	}
+
+////	if(predict_probability)
+////	{
+////		if (svm_type==NU_SVR || svm_type==EPSILON_SVR)
+////			info("Prob. model for test data: target value = predicted value + z,\nz: Laplace distribution e^(-|z|/sigma)/(2sigma),sigma=%g\n",svm_get_svr_probability(model));
+////		else
+////		{
+//			int *labels=(int *) malloc(nr_class*sizeof(int));
+//			svm_get_labels(model,labels);
+//			prob_estimates = (double *) malloc(nr_class*sizeof(double));
+//			fprintf(output,"labels");
+//			for(j=0;j<nr_class;j++)
+//				fprintf(output," %d",labels[j]);
+//			fprintf(output,"\n");
+//			free(labels);
+////		}
+////	}
+
 
 	max_line_len = 1024;
 	line = (char *)malloc(max_line_len*sizeof(char));
@@ -227,7 +232,7 @@ void predict(FILE *input, FILE *output)
 		target_label = strtod(label,&endptr);
 		if(endptr == label || *endptr != '\0')
 			exit_input_error(total+1);
-        cout<< "Here" << endl;
+
 		while(1)
 		{
 
@@ -243,6 +248,7 @@ void predict(FILE *input, FILE *output)
 			if(val == NULL)
 				break;
 			errno = 0;
+
 			x[i].index = (int) strtol(idx,&endptr,10);
 			if(endptr == idx || errno != 0 || *endptr != '\0' || x[i].index <= inst_max_index)
 				exit_input_error(total+1);
@@ -256,6 +262,8 @@ void predict(FILE *input, FILE *output)
 
 			++i;
 		}
+
+
 		x[i].index = -1;
 
 		if (predict_probability && (svm_type==C_SVC || svm_type==NU_SVC))
@@ -339,7 +347,9 @@ int main()
 	const char *out_file = output_file_name.c_str();
 	FILE *output = fopen(out_file,"w");
     //====================================
+    x = (struct svm_node *) malloc(max_nr_attr*sizeof(struct svm_node));f
     predict(input_test,output);
+
 
 
 

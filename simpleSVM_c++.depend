@@ -23,3 +23,27 @@
 	<locale.h>
 	"svm.h"
 
+1433339567 source:c:\users\ce-user\documents\simplesvm-cplusplus\svm.cpp
+	<math.h>
+	<stdio.h>
+	<stdlib.h>
+	<ctype.h>
+	<float.h>
+	<string.h>
+	<stdarg.h>
+	<limits.h>
+	<locale.h>
+	"svm.h"
+
+1433339567 c:\users\ce-user\documents\simplesvm-cplusplus\svm.h
+
+1433841026 source:c:\users\ce-user\documents\simplesvm-cplusplus\main.cpp
+	<iostream>
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<ctype.h>
+	<errno.h>
+	"svm.h"
+	<vector>
+
