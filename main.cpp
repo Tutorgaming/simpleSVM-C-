@@ -194,31 +194,26 @@ void predict(FILE *input, FILE *output)
 	int nr_class=svm_get_nr_class(model);
 	double *prob_estimates=NULL;
 	int j;
-// In this Simple Machine We don't use probability Predict
 
-
-////	if(predict_probability)
-////	{
-////		if (svm_type==NU_SVR || svm_type==EPSILON_SVR)
-////			info("Prob. model for test data: target value = predicted value + z,\nz: Laplace distribution e^(-|z|/sigma)/(2sigma),sigma=%g\n",svm_get_svr_probability(model));
-////		else
-////		{
-//			int *labels=(int *) malloc(nr_class*sizeof(int));
-//			svm_get_labels(model,labels);
-//			prob_estimates = (double *) malloc(nr_class*sizeof(double));
-//			fprintf(output,"labels");
-//			for(j=0;j<nr_class;j++)
-//				fprintf(output," %d",labels[j]);
-//			fprintf(output,"\n");
-//			free(labels);
-////		}
-////	}
-
+	if(predict_probability){
+		if (svm_type==NU_SVR || svm_type==EPSILON_SVR)
+			info("Prob. model for test data: target value = predicted value + z,\nz: Laplace distribution e^(-|z|/sigma)/(2sigma),sigma=%g\n",svm_get_svr_probability(model));
+		else{
+			int *labels=(int *) malloc(nr_class*sizeof(int));
+			svm_get_labels(model,labels);
+			prob_estimates = (double *) malloc(nr_class*sizeof(double));
+			fprintf(output,"labels");
+			for(j=0;j<nr_class;j++)
+				fprintf(output," %d",labels[j]);
+			fprintf(output,"\n");
+			free(labels);
+		}
+	}
 
 	max_line_len = 1024;
 	line = (char *)malloc(max_line_len*sizeof(char));
-	while(readline(input) != NULL)
-	{
+
+	while(readline(input) != NULL){
 
 		int i = 0;
 		double target_label, predict_label;
