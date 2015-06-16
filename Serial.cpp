@@ -107,8 +107,7 @@ BOOL CSerial::WriteCommByte( unsigned char ucByte )
 
 }
 
-int CSerial::SendData( const char *buffer, int size )
-{
+int CSerial::SendData( const char *buffer, int size ){
 
 	if( !m_bOpened || m_hIDComDev == NULL ) return( 0 );
 
