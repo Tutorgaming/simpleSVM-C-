@@ -4,29 +4,32 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
-#include "svm.h"
 #include <vector>
+#include <windows.h>
+#include <sstream>
+
+#include "svm.h"
+#include "Serial.h"
+
 #define Malloc(type,n) (type *)malloc((n)*sizeof(type))
 
 using namespace std;
-struct svm_parameter param;		// set by parse_command_line
+struct svm_parameter param;
 struct svm_problem prob;
 struct svm_model *model;
 struct svm_node *x_space;
-
 struct svm_node *x;
 
 static char *line = NULL;
 static int max_line_len;
 string input_file_name;
-
-
+HANDLE hSerial;
+CSerial serial;
 int max_nr_attr = 64;
 int predict_probability=0;
 static int (*info)(const char *fmt,...) = &printf;
 
-static char* readline(FILE *input)
-{
+static char* readline(FILE *input){
 	int len;
 
 	if(fgets(line,max_line_len,input) == NULL)
@@ -43,14 +46,12 @@ static char* readline(FILE *input)
 	return line;
 }
 
-
 void greetings(){
     cout << "Simple SVM C++ Version 1.0" << endl << "Initialized ! " << endl;
     cout << "Training Dataset Filename = " ;
     cin >> input_file_name;
 }
-void exit_input_error(int line_num)
-{
+void exit_input_error(int line_num){
 	fprintf(stderr,"Wrong input format at line %d\n", line_num);
 	exit(1);
 }
@@ -75,9 +76,7 @@ void options(){
 }
 
 // read in a problem (in svmlight format)
-
-void read_problem(string myfilename)
-{
+void read_problem(string myfilename){
 	int max_index, inst_max_index, i;
 	size_t elements, j;
 
@@ -182,9 +181,7 @@ void read_problem(string myfilename)
 	fclose(fp);
 }
 
-
-void predict(FILE *input, FILE *output)
-{
+void predict(FILE *input, FILE *output){
 	int correct = 0;
 	int total = 0;
 	double error = 0;
@@ -301,6 +298,83 @@ void predict(FILE *input, FILE *output)
 		free(prob_estimates);
 }
 
+int sentbyte_serial(char * input , int input_size){
+
+            // FOR INTEGER - Create Char Array according to Digits
+            char bytes_to_send[input_size+1];
+            // Copy the input file to Send BUFFER
+            for(int i = 0 ; i < input_size ; i++){
+                bytes_to_send[i] = input[i];
+            }
+            bytes_to_send[input_size] = ',';
+            // Send specified text (remaining command line arguments)
+            DWORD bytes_written, total_bytes_written = 0;
+            fprintf(stderr, "Sending bytes...");
+            if(!WriteFile(hSerial, bytes_to_send, input_size+1, &bytes_written, NULL))
+            {
+                fprintf(stderr, "Error\n");
+                CloseHandle(hSerial);
+                return 1;
+            }
+            fprintf(stderr, "%d bytes written\n", bytes_written);
+            // Close serial port
+            fprintf(stderr, "Closing serial port...");
+            if (CloseHandle(hSerial) == 0)
+            {
+                fprintf(stderr, "Error\n");
+                return 1;
+            }
+            fprintf(stderr, "OK\n");
+}
+
+int numDigits(int number){
+    int digits = 0;
+    if (number < 0) digits = 1;
+    while (number) {
+        number /= 10;
+        digits++;
+    }
+    return digits;
+}
+
+void sent_int_to_serial(int input){
+    int digits = numDigits(input);
+    char* tempChar;
+    itoa(input,tempChar,10);
+    sentbyte_serial(tempChar,digits);
+
+}
+
+
+void serial_sent_int(int input){
+    int digits = numDigits(input);
+    stringstream temp_str;
+    temp_str << (input);
+    string str = temp_str.str();
+    const char * tempChar = str.c_str();
+    serial.SendData(tempChar,digits);
+    //Ending Seperator
+    serial.SendData(",",1);
+}
+
+string convertDouble(double value) {
+  std::ostringstream o;
+  if (!(o << value))
+    return "";
+  return o.str();
+}
+
+void sent_double_to_serial(double input){
+
+    int digits = numDigits((int)input) + 5;
+    char* tempChar;
+    cout << "DIGIT TO SENT = " << digits << endl;
+    strcpy( tempChar, convertDouble(input).c_str());
+    cout << " @CONTENT = " << tempChar <<endl;
+    sentbyte_serial(tempChar,digits);
+
+}
+
 int main()
 {
     //Show Welcome Message and Get DATASET Filename
@@ -321,29 +395,85 @@ int main()
 	model = svm_train(&prob,&param);
 
     //Use The Model as an Predictor
-    int correct = 0;
-	int total = 0;
-	double error = 0;
-	double sump = 0, sumt = 0, sumpp = 0, sumtt = 0, sumpt = 0;
-    int svm_type=svm_get_svm_type(model);
-	int nr_class=svm_get_nr_class(model);
-	double *prob_estimates=NULL;
-	int j;
+//    int correct = 0;
+//	int total = 0;
+//	double error = 0;
+//	double sump = 0, sumt = 0, sumpp = 0, sumtt = 0, sumpt = 0;
+//    int svm_type=svm_get_svm_type(model);
+//	int nr_class=svm_get_nr_class(model);
+//	double *prob_estimates=NULL;
+//	int j;
     //====================================
-    string test_file_name,output_file_name;
-	cout << "Test File Name = ? > " ;
-	cin >> test_file_name;
+    //SENT TO SERIAL
+    cout << "Opening Serial Port Comm. . . . " <<endl;
 
-	cout << "Output Result File Name = ? ( Create your Own one ) > " ;
-	cin >> output_file_name;
 
-    const char *test_file = test_file_name.c_str();
-	FILE *input_test = fopen(test_file,"r");
-	const char *out_file = output_file_name.c_str();
-	FILE *output = fopen(out_file,"w");
-    //====================================
-    x = (struct svm_node *) malloc(max_nr_attr*sizeof(struct svm_node));
-    predict(input_test,output);
+    if (serial.Open(4, 9600)){
+     cout << "Port opened successfully" << endl;
+    }else{
+     cout << "Failed to open port!" << endl;
+    }
+
+    serial_sent_int(model->nr_class);
+    serial_sent_int(model->l);
+
+
+        //SERIAL SENT
+
+
+
+
+
+
+//            // Open Port COM4 For transfer
+//            hSerial = CreateFile(
+//                "\\\\.\\COM4", GENERIC_READ|GENERIC_WRITE, 0, NULL,
+//                OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
+//
+//            sent_int_to_serial(model->nr_class);
+//            sent_int_to_serial(model->l);
+//
+//            int rhosize = model->nr_class*(model->nr_class-1)/2;
+//            for(int i = 0 ; i <rhosize ; i++){
+//                cout << model->rho[i] <<endl;
+//                sent_double_to_serial(model->rho[i]);
+//            }
+           // waitforack();
+            //WAIT TO RECEIVE ACK
+
+            //SENT TOTAL_SV
+            //WAIT FOR "SIGNAL"
+            //SENT RHO[nr_class*(nr_class-1)/2]
+            //WAIT FOR "SIGNAL" x3
+            //SENT LABEL[nr_class]
+            //WAIT FOR "SIGNAL" x3
+            //SENT NR_SV[nr_class]
+            //WAIT FOR "SIGNAL" x3
+
+
+
+//    string model_file_name;
+//    cout << "Model File Name = ? > " ;
+//	cin >> model_file_name;
+//	const char *model_file = model_file_name.c_str();
+//    svm_save_model(model_file, model);
+
+//    cout << ""
+//    //====================================
+//    string test_file_name,output_file_name;
+//	cout << "Test File Name = ? > " ;
+//	cin >> test_file_name;
+//
+//	cout << "Output Result File Name = ? ( Create your Own one ) > " ;
+//	cin >> output_file_name;
+//
+//    const char *test_file = test_file_name.c_str();
+//	FILE *input_test = fopen(test_file,"r");
+//	const char *out_file = output_file_name.c_str();
+//	FILE *output = fopen(out_file,"w");
+//    //====================================
+//    x = (struct svm_node *) malloc(max_nr_attr*sizeof(struct svm_node));
+//    predict(input_test,output);
 
 
 

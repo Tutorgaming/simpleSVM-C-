@@ -32,6 +32,8 @@
 			<Add option="-Wall" />
 			<Add option="-fexceptions" />
 		</Compiler>
+		<Unit filename="Serial.cpp" />
+		<Unit filename="Serial.h" />
 		<Unit filename="main.cpp" />
 		<Unit filename="svm.cpp" />
 		<Unit filename="svm.h" />
