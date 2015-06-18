@@ -318,7 +318,7 @@ void serial_sent_int(int input){
         serial.SendData(tempChar,digits);
     //Ending Seperator
         serial.SendData(",",1);
-        Sleep(100);
+        Sleep(40);
 }
 string convertDouble(double value) {
   std::ostringstream o;
@@ -341,7 +341,7 @@ void serial_sent_double(double input){
     //Ending Seperator
         serial.SendData(",",1);
 
-        Sleep(100);
+        Sleep(40);
 
 }
 
@@ -374,7 +374,7 @@ int main(){
 	int j;
    // ====================================
    // SENT TO SERIAL
-     cout << "[Serial] Opening Serial Port Comm. . . . " <<endl;
+    cout << "[Serial] Opening Serial Port Comm. . . . " <<endl;
     if (serial.Open(4, 9600)){
      cout << "[Serial] Port opened successfully" << endl;
     }else{
@@ -387,17 +387,30 @@ int main(){
             int rhosize = model->nr_class*(model->nr_class-1)/2;
             for(int i = 0 ; i <rhosize ; i++){
                 serial_sent_double(model->rho[i]);
-
             }
 
             for(int i = 0 ; i < model->nr_class ; i++){
                 serial_sent_int(model->label[i]);
-
             }
 
             for(int i = 0 ; i < model->nr_class ; i++){
                 serial_sent_int(model->nSV[i]);
+            }
 
+            //SENT SV_COEF[IT][row] for nr_class - 1 element
+            //SENT SV[row][IT]
+            cout << "Here We Go" <<endl;
+            for(int i = 0 ; i < model->l ; i++){
+                //Send Reference for Looping
+                serial_sent_int(sizeof(model->SV[i]));
+
+                for(int z = 0 ; z < model->nr_class-1 ; z++){
+                    serial_sent_double(model->sv_coef[z][i]);
+                }
+                for(int j = 0 ; j < sizeof(model->SV[i])-1 ; j++ ){
+                    serial_sent_int(model->SV[i][j].index);
+                    serial_sent_double(model->SV[i][j].value);
+                }
             }
     serial.Close();
     return 0;
