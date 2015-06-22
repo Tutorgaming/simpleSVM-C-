@@ -23,7 +23,7 @@ struct svm_node *x;
 static char *line = NULL;
 static int max_line_len;
 string input_file_name;
-
+int dimension = 3;
 CSerial serial;
 int max_nr_attr = 64;
 int predict_probability=0;
@@ -49,6 +49,10 @@ void greetings(){
     cout << "Simple SVM C++ Version 1.0" << endl << "Initialized ! " << endl;
     cout << "Training Dataset Filename = " ;
     cin >> input_file_name;
+    if(input_file_name != "input1"){
+    cout << "Insert Dimension = ";
+    cin >> dimension;
+    }
 }
 void exit_input_error(int line_num){
 	fprintf(stderr,"Wrong input format at line %d\n", line_num);
@@ -340,9 +344,7 @@ void serial_sent_double(double input){
         serial.SendData(tempChar,digits);
     //Ending Seperator
         serial.SendData(",",1);
-
         Sleep(40);
-
 }
 
 int main(){
@@ -363,7 +365,7 @@ int main(){
     //Begin The Training Process
 	model = svm_train(&prob,&param);
 
-//    Use The Model as an Predictor
+    //Use The Model as an Predictor
     int correct = 0;
 	int total = 0;
 	double error = 0;
@@ -372,47 +374,53 @@ int main(){
 	int nr_class=svm_get_nr_class(model);
 	double *prob_estimates=NULL;
 	int j;
-   // ====================================
-   // SENT TO SERIAL
+    // ====================================
+    // SENT MODEL TO MICROCONTROLLER
+    // ====================================
     cout << "[Serial] Opening Serial Port Comm. . . . " <<endl;
     if (serial.Open(4, 9600)){
-     cout << "[Serial] Port opened successfully" << endl;
+        cout << "[Serial] Port opened successfully" << endl;
     }else{
-     cout << "[Serial] Failed to open port!" << endl;
+        cout << "[Serial] Failed to open port!" << endl;
     }
-    serial_sent_int(model->nr_class);
+    //Sending Process Begin Here
+        serial_sent_int(dimension);
+        serial_sent_int(model->nr_class); //Number Of Class
+        serial_sent_int(model->l);      //Number of Total Vector
 
-    serial_sent_int(model->l);
+        //Rho Array
+        int rhosize = model->nr_class*(model->nr_class-1)/2;
+        for(int i = 0 ; i <rhosize ; i++){
+            serial_sent_double(model->rho[i]);
+        }
 
-            int rhosize = model->nr_class*(model->nr_class-1)/2;
-            for(int i = 0 ; i <rhosize ; i++){
-                serial_sent_double(model->rho[i]);
+        //Label Name Tag
+        for(int i = 0 ; i < model->nr_class ; i++){
+            serial_sent_int(model->label[i]);
+        }
+
+        //nSV Array
+        for(int i = 0 ; i < model->nr_class ; i++){
+            serial_sent_int(model->nSV[i]);
+        }
+
+        //SENT SV_COEF[IT][row] for nr_class - 1 element
+        //SENT      SV[row][IT]
+        for(int i = 0 ; i < model->l ; i++){
+            //Send Reference for Looping
+            serial_sent_int(sizeof(model->SV[i]));
+            for(int z = 0 ; z < model->nr_class-1 ; z++){
+                serial_sent_double(model->sv_coef[z][i]);
             }
-
-            for(int i = 0 ; i < model->nr_class ; i++){
-                serial_sent_int(model->label[i]);
+            for(int j = 0 ; j < sizeof(model->SV[i]) ; j++ ){
+                serial_sent_int(model->SV[i][j].index);
+                serial_sent_double(model->SV[i][j].value);
             }
-
-            for(int i = 0 ; i < model->nr_class ; i++){
-                serial_sent_int(model->nSV[i]);
-            }
-
-            //SENT SV_COEF[IT][row] for nr_class - 1 element
-            //SENT SV[row][IT]
-            cout << "Here We Go" <<endl;
-            for(int i = 0 ; i < model->l ; i++){
-                //Send Reference for Looping
-                serial_sent_int(sizeof(model->SV[i]));
-
-                for(int z = 0 ; z < model->nr_class-1 ; z++){
-                    serial_sent_double(model->sv_coef[z][i]);
-                }
-                for(int j = 0 ; j < sizeof(model->SV[i])-1 ; j++ ){
-                    serial_sent_int(model->SV[i][j].index);
-                    serial_sent_double(model->SV[i][j].value);
-                }
-            }
+        }
     serial.Close();
+
+    cout << "Sending Model Data Completed" <<endl;
+
     return 0;
 }
 
