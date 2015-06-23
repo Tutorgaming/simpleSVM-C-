@@ -1,3 +1,15 @@
+/*
+ * LIBSVM
+ * DESKTOP SIDE -> SENDER
+ * Version 1.0
+ * by Theppasith N.
+ * ( TU-Chemnitz Summer Internship Program )
+ * Serial Comm Detail
+ * 	BAUDRATE : 9600
+ * 	SMCLK    : 1.5Mhz
+ * 	Credited to : LIBSVM library.
+ */
+
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,7 +71,8 @@ void exit_input_error(int line_num){
 	exit(1);
 }
 void options(){
-    // default values
+    // SETTINGs for C-SVM LINEAR with COST 100
+    // Param in command line = -t 0 -s 0 -c 100
 	param.svm_type = C_SVC;
 	param.kernel_type = LINEAR;
 	param.degree = 3;
@@ -79,6 +92,8 @@ void options(){
 }
 
 // read in a problem (in svmlight format)
+// {RESULT} {index}:{value} {index}:{value}
+// 0 1:0.123456 2:0.789012
 void read_problem(string myfilename){
 	int max_index, inst_max_index, i;
 	size_t elements, j;
@@ -88,24 +103,19 @@ void read_problem(string myfilename){
 	char *endptr;
 	char *idx, *val, *label;
 
-	if(fp == NULL)
-	{
+	if(fp == NULL){
 		fprintf(stderr,"can't open input file %s\n",filename);
 		exit(1);
 	}
 
 	prob.l = 0;
 	elements = 0;
-
 	max_line_len = 1024;
 	line = Malloc(char,max_line_len);
-	while(readline(fp)!=NULL)
-	{
+	while(readline(fp)!=NULL){
 		char *p = strtok(line," \t"); // label
-
 		// features
-		while(1)
-		{
+		while(1){
 			p = strtok(NULL," \t");
 			if(p == NULL || *p == '\n') // check '\n' as ' ' may be after the last feature
 				break;
@@ -318,7 +328,7 @@ void serial_sent_int(int input){
         string str = temp_str.str();
         const char * tempChar = str.c_str();
     //Transfer via Serial
-        cout << "[Serial] Sending : " << tempChar << endl;
+        cout << "[Serial] Sending (integer) : " << tempChar << endl;
         serial.SendData(tempChar,digits);
     //Ending Seperator
         serial.SendData(",",1);
@@ -340,7 +350,7 @@ void serial_sent_double(double input){
     int digits = int_digits + 1 + 6;
     snprintf(tempChar,50,"%f",input);
     //Transfer via Serial
-        cout << "[Serial] Sending : " << tempChar << endl;
+        cout << "[Serial] Sending (double ) : " << tempChar << endl;
         serial.SendData(tempChar,digits);
     //Ending Seperator
         serial.SendData(",",1);
@@ -350,6 +360,8 @@ void serial_sent_double(double input){
 int main(){
     //Show Welcome Message and Get DATASET Filename
     greetings();
+    //Select The MicroController Or Desktop Model
+    bool desktop = false;
     //Set the options
     options();
     //Read the Dataset
@@ -377,78 +389,95 @@ int main(){
     // ====================================
     // SENT MODEL TO MICROCONTROLLER
     // ====================================
-    cout << "[Serial] Opening Serial Port Comm. . . . " <<endl;
-    if (serial.Open(4, 9600)){
-        cout << "[Serial] Port opened successfully" << endl;
-    }else{
-        cout << "[Serial] Failed to open port!" << endl;
+    if(!desktop){
+        cout << "[Serial] Opening Serial Port Comm. . . . " <<endl;
+        if (serial.Open(4, 9600)){
+            cout << "[Serial] Port opened successfully" << endl;
+        }else{
+            cout << "[Serial] Failed to open port!" << endl;
+        }
+        //Sending Process Begin Here
+            serial_sent_int(dimension);
+            serial_sent_int(model->nr_class); //Number Of Class
+            serial_sent_int(model->l);      //Number of Total Vector
+
+            //Rho Array
+            int rhosize = model->nr_class*(model->nr_class-1)/2;
+            for(int i = 0 ; i <rhosize ; i++){
+                serial_sent_double(model->rho[i]);
+            }
+
+            //Label Name Tag
+            for(int i = 0 ; i < model->nr_class ; i++){
+                serial_sent_int(model->label[i]);
+            }
+
+            //nSV Array
+            for(int i = 0 ; i < model->nr_class ; i++){
+                serial_sent_int(model->nSV[i]);
+            }
+
+            //SENT SV_COEF[IT][row] for nr_class - 1 element
+            //SENT      SV[row][IT]
+            for(int i = 0 ; i < model->l ; i++){
+                //Send Reference for Looping
+                //serial_sent_int(sizeof(model->SV[i]));
+                serial_sent_int(dimension+1);
+                for(int z = 0 ; z < model->nr_class-1 ; z++){
+                    serial_sent_double(model->sv_coef[z][i]);
+                }
+                int j=0;
+                for(j = 0 ; j < dimension+1 ; j++ ){
+                    serial_sent_int(model->SV[i][j].index);
+                    serial_sent_double(model->SV[i][j].value);
+                }
+            }
+
+            cout << "Sending Model Data Completed" <<endl;
+            cout << "======================================" <<endl << endl;
+
+            int expect=-1;
+            double temp;
+            cout << " INPUT TEST VECTOR" << endl;
+            for(int i = 0 ; i < dimension ; i++){
+                cout << "   X[" << i << "].index = " << i+1 <<endl;
+                cout << "   X[" << i << "].value = ";
+                cin >> temp;
+                serial_sent_double(temp);
+            }
+            cout << endl;
+            cout << "   EXPECT RESULT ??  = > ";
+            cin >> expect;
+            serial_sent_int(expect);
+
+        serial.Close();
+
+   }else{
+        //=====================================
+        // PREDICTION MODULE ON DESKTOP
+        //=====================================
+        string model_file_name;
+        cout << "Model File Name = ? > " ;
+        cin >> model_file_name;
+        const char *model_file = model_file_name.c_str();
+        svm_save_model(model_file, model);
+
+        cout << "";
+        //====================================
+        string test_file_name,output_file_name;
+        cout << "Test File Name = ? > " ;
+        cin >> test_file_name;
+
+        cout << "Output Result File Name = ? ( Create your Own one ) > " ;
+        cin >> output_file_name;
+
+        const char *test_file = test_file_name.c_str();
+        FILE *input_test = fopen(test_file,"r");
+        const char *out_file = output_file_name.c_str();
+        FILE *output = fopen(out_file,"w");
+        //====================================
+        x = (struct svm_node *) malloc(max_nr_attr*sizeof(struct svm_node));
+        predict(input_test,output);
     }
-    //Sending Process Begin Here
-        serial_sent_int(dimension);
-        serial_sent_int(model->nr_class); //Number Of Class
-        serial_sent_int(model->l);      //Number of Total Vector
-
-        //Rho Array
-        int rhosize = model->nr_class*(model->nr_class-1)/2;
-        for(int i = 0 ; i <rhosize ; i++){
-            serial_sent_double(model->rho[i]);
-        }
-
-        //Label Name Tag
-        for(int i = 0 ; i < model->nr_class ; i++){
-            serial_sent_int(model->label[i]);
-        }
-
-        //nSV Array
-        for(int i = 0 ; i < model->nr_class ; i++){
-            serial_sent_int(model->nSV[i]);
-        }
-
-        //SENT SV_COEF[IT][row] for nr_class - 1 element
-        //SENT      SV[row][IT]
-        for(int i = 0 ; i < model->l ; i++){
-            //Send Reference for Looping
-            serial_sent_int(sizeof(model->SV[i]));
-            for(int z = 0 ; z < model->nr_class-1 ; z++){
-                serial_sent_double(model->sv_coef[z][i]);
-            }
-            for(int j = 0 ; j < sizeof(model->SV[i]) ; j++ ){
-                serial_sent_int(model->SV[i][j].index);
-                serial_sent_double(model->SV[i][j].value);
-            }
-        }
-    serial.Close();
-
-    cout << "Sending Model Data Completed" <<endl;
-
     return 0;
 }
-
-
-
-//PREDICTION MODULE on DESKTOP
-
-  /*
-    string model_file_name;
-    cout << "Model File Name = ? > " ;
-	cin >> model_file_name;
-	const char *model_file = model_file_name.c_str();
-    svm_save_model(model_file, model);
-
-    cout << ""
-    //====================================
-    string test_file_name,output_file_name;
-	cout << "Test File Name = ? > " ;
-	cin >> test_file_name;
-
-	cout << "Output Result File Name = ? ( Create your Own one ) > " ;
-	cin >> output_file_name;
-
-    const char *test_file = test_file_name.c_str();
-	FILE *input_test = fopen(test_file,"r");
-	const char *out_file = output_file_name.c_str();
-	FILE *output = fopen(out_file,"w");
-    //====================================
-    x = (struct svm_node *) malloc(max_nr_attr*sizeof(struct svm_node));
-    predict(input_test,output);
-    */
