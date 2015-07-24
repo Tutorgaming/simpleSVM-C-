@@ -26,19 +26,19 @@
 #define Malloc(type,n) (type *)malloc((n)*sizeof(type))
 
 using namespace std;
-struct svm_parameter param;
-struct svm_problem prob;
-struct svm_model *model;
-struct svm_node *x_space;
-struct svm_node *x;
+struct      svm_parameter    param;
+struct      svm_problem      prob;
+struct      svm_model        *model;
+struct      svm_node         *x_space;
+struct      svm_node         *x;
 
-static char *line = NULL;
-static int max_line_len;
-string input_file_name;
-int dimension = 3;
-CSerial serial;
-int max_nr_attr = 64;
-int predict_probability=0;
+static      char *line = NULL;
+static      int max_line_len;
+string      input_file_name;
+int         dimension = 3;
+CSerial     serial;
+int         max_nr_attr = 64;
+int         predict_probability=0;
 static int (*info)(const char *fmt,...) = &printf;
 
 static char* readline(FILE *input){
@@ -58,13 +58,16 @@ static char* readline(FILE *input){
 	return line;
 }
 void greetings(){
-    cout << "Simple SVM C++ Version 1.0" << endl << "Initialized ! " << endl;
+    cout << "==================="<<endl;
+    cout << "Simple SVM C++ Version 1.0 Initialized ! "<<endl;
+    cout << "==================="<<endl;
     cout << "Training Dataset Filename = " ;
     cin >> input_file_name;
     if(input_file_name != "input1"){
     cout << "Insert Dimension = ";
     cin >> dimension;
     }
+    cout << "==================="<<endl;
 }
 void exit_input_error(int line_num){
 	fprintf(stderr,"Wrong input format at line %d\n", line_num);
@@ -193,7 +196,7 @@ void read_problem(string myfilename){
 
 	fclose(fp);
 }
-void predict(FILE *input, FILE *output){
+void predict(FILE *input, FILE *output){ //PREDICT FROM TEST FILE
 	int correct = 0;
 	int total = 0;
 	double error = 0;
@@ -237,11 +240,9 @@ void predict(FILE *input, FILE *output){
 		if(endptr == label || *endptr != '\0')
 			exit_input_error(total+1);
 
-		while(1)
-		{
+		while(1){
 
-			if(i>=max_nr_attr-1)	// need one more for index = -1
-			{
+			if(i>=max_nr_attr-1){	// need one more for index = -1
 				max_nr_attr *= 2;
 				x = (struct svm_node *) realloc(x,max_nr_attr*sizeof(struct svm_node));
 			}
@@ -249,8 +250,7 @@ void predict(FILE *input, FILE *output){
 			idx = strtok(NULL,":");
 			val = strtok(NULL," \t");
 
-			if(val == NULL)
-				break;
+			if(val == NULL)break;
 			errno = 0;
 
 			x[i].index = (int) strtol(idx,&endptr,10);
@@ -263,40 +263,35 @@ void predict(FILE *input, FILE *output){
 			x[i].value = strtod(val,&endptr);
 			if(endptr == val || errno != 0 || (*endptr != '\0' && !isspace(*endptr)))
 				exit_input_error(total+1);
-
 			++i;
 		}
 
-
 		x[i].index = -1;
 
-		if (predict_probability && (svm_type==C_SVC || svm_type==NU_SVC))
-		{
+		if (predict_probability && (svm_type==C_SVC || svm_type==NU_SVC)){
 			predict_label = svm_predict_probability(model,x,prob_estimates);
 			fprintf(output,"%g",predict_label);
 			for(j=0;j<nr_class;j++)
 				fprintf(output," %g",prob_estimates[j]);
 			fprintf(output,"\n");
 		}
-		else
-		{
+		else{
 			predict_label = svm_predict(model,x);
 			fprintf(output,"%g\n",predict_label);
 		}
 
-		if(predict_label == target_label)
-			++correct;
-		error += (predict_label-target_label)*(predict_label-target_label);
-		sump += predict_label;
-		sumt += target_label;
-		sumpp += predict_label*predict_label;
-		sumtt += target_label*target_label;
-		sumpt += predict_label*target_label;
+		if(predict_label == target_label)++correct;
+
+		error   += (predict_label-target_label)*(predict_label-target_label);
+		sump    +=  predict_label;
+		sumt    +=  target_label;
+		sumpp   +=  predict_label*predict_label;
+		sumtt   +=  target_label *target_label;
+		sumpt   +=  predict_label*target_label;
 		++total;
 	}
 
-	if (svm_type==NU_SVR || svm_type==EPSILON_SVR)
-	{
+	if (svm_type==NU_SVR || svm_type==EPSILON_SVR){
 		info("Mean squared error = %g (regression)\n",error/total);
 		info("Squared correlation coefficient = %g (regression)\n",
 			((total*sumpt-sump*sumt)*(total*sumpt-sump*sumt))/
@@ -319,6 +314,7 @@ int numDigits(int number){
     return digits;
 }
 void serial_sent_int(int input){
+    cout << "                                                     " << "\r";
     //Find The Amount Of Digits
         int digits = numDigits(input);
         if(input == 0) digits = 1;
@@ -328,7 +324,7 @@ void serial_sent_int(int input){
         string str = temp_str.str();
         const char * tempChar = str.c_str();
     //Transfer via Serial
-        cout << "[Serial] Sending (integer) : " << tempChar << endl;
+        cout << "[Serial] Sending (integer) : " << tempChar << "\r";
         serial.SendData(tempChar,digits);
     //Ending Seperator
         serial.SendData(",",1);
@@ -343,6 +339,7 @@ string convertDouble(double value) {
 
 
 void serial_sent_double(double input){
+    cout << "                                                     " << "\r";
     //Find the Amount of Integer
     int int_digits = numDigits((int)input); //Cast to int then find
     //convert to CONST CHAR * with fixing 6 precision of decimal
@@ -350,7 +347,7 @@ void serial_sent_double(double input){
     int digits = int_digits + 1 + 6;
     snprintf(tempChar,50,"%f",input);
     //Transfer via Serial
-        cout << "[Serial] Sending (double ) : " << tempChar << endl;
+        cout << "[Serial] Sending (double ) : " << tempChar << "\r";
         serial.SendData(tempChar,digits);
     //Ending Seperator
         serial.SendData(",",1);
@@ -358,10 +355,13 @@ void serial_sent_double(double input){
 }
 
 int main(){
+// ====================================
+// Initialize
+// ====================================
     //Show Welcome Message and Get DATASET Filename
     greetings();
     //Select The MicroController Or Desktop Model
-    bool desktop = false;
+    bool desktop = true;
     //Set the options
     options();
     //Read the Dataset
@@ -374,28 +374,41 @@ int main(){
 		exit(1);
 	}
 
-    //Begin The Training Process
-	model = svm_train(&prob,&param);
+// ====================================
+// Begin The Training process
+// ====================================
+    cout << "==================="<<endl;
+    cout << " BEGIN TRAINING PROCESS . .  "<<endl;
+    cout << "==================="<<endl;
+                model           = svm_train(&prob,&param); //Training Here
+	int         nr_class        = svm_get_nr_class(model);
+	double      *prob_estimates = NULL;
+	int         j;
+	cout << " Training Process Complete " <<endl <<endl;
 
-    //Use The Model as an Predictor
-    int correct = 0;
-	int total = 0;
-	double error = 0;
-	double sump = 0, sumt = 0, sumpp = 0, sumtt = 0, sumpt = 0;
-    int svm_type=svm_get_svm_type(model);
-	int nr_class=svm_get_nr_class(model);
-	double *prob_estimates=NULL;
-	int j;
-    // ====================================
-    // SENT MODEL TO MICROCONTROLLER
-    // ====================================
+// ====================================
+// SEND MODEL TO PREDICT @ MICROCONTROLLER
+// ====================================
     if(!desktop){
+        int COMPORT = 4;
+        int BAUDRATE = 9600;
+        cout << "==================="<<endl;
+        cout << " Serial Transmission Mode Activated! " <<endl;
+        cout << " Opening Port = COM"<< COMPORT <<endl<< " BAUDRATE = " << BAUDRATE <<endl;
+        cout << endl <<"PRESS ENTER TO BEGIN TRANSMISSION ! " <<endl;
+        cin.ignore(); cin.ignore();
+        cout << "==================="<<endl;
         cout << "[Serial] Opening Serial Port Comm. . . . " <<endl;
-        if (serial.Open(4, 9600)){
+
+        if (serial.Open(COMPORT, BAUDRATE)){
             cout << "[Serial] Port opened successfully" << endl;
         }else{
             cout << "[Serial] Failed to open port!" << endl;
+            //return -1;
         }
+        cout << "==================="<<endl;
+        cout << "BEGIN SENDING MODEL TO SERIAL INTERFACE !" << endl;
+        cout << "==================="<<endl;
         //Sending Process Begin Here
             serial_sent_int(dimension);
             serial_sent_int(model->nr_class); //Number Of Class
@@ -432,30 +445,36 @@ int main(){
                     serial_sent_double(model->SV[i][j].value);
                 }
             }
-
-            cout << "Sending Model Data Completed" <<endl;
+            cout << endl<<"Sending Model Data Completed" <<endl;
             cout << "======================================" <<endl << endl;
-
+            cout << "==================="<<endl;
+            cout << " Classification on New Data input " <<endl;
+            cout << "==================="<<endl;
             int expect=-1;
             double temp;
+            while(1){
             cout << " INPUT TEST VECTOR" << endl;
             for(int i = 0 ; i < dimension ; i++){
                 cout << "   X[" << i << "].index = " << i+1 <<endl;
                 cout << "   X[" << i << "].value = ";
                 cin >> temp;
                 serial_sent_double(temp);
+                cout << endl;
             }
+//            cout << endl;
+//            cout << "   EXPECT RESULT ??  = > ";
+//            cin >> expect;
+//            serial_sent_int(expect);
             cout << endl;
-            cout << "   EXPECT RESULT ??  = > ";
-            cin >> expect;
-            serial_sent_int(expect);
-
+            cout << "==================="<<endl;
+            cout << endl;
+            }
         serial.Close();
 
    }else{
-        //=====================================
-        // PREDICTION MODULE ON DESKTOP
-        //=====================================
+//=====================================
+// PREDICTION MODULE ON DESKTOP
+//=====================================
         string model_file_name;
         cout << "Model File Name = ? > " ;
         cin >> model_file_name;
