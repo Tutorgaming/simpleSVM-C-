@@ -26,21 +26,33 @@
 #define Malloc(type,n) (type *)malloc((n)*sizeof(type))
 
 using namespace std;
-struct      svm_parameter    param;
-struct      svm_problem      prob;
-struct      svm_model        *model;
-struct      svm_node         *x_space;
-struct      svm_node         *x;
 
-static      char *line = NULL;
-static      int max_line_len;
-string      input_file_name;
-int         dimension = 3;
-CSerial     serial;
-int         max_nr_attr = 64;
-int         predict_probability=0;
-static int (*info)(const char *fmt,...) = &printf;
+/*================================
+   @Data Structure
+==================================*/
+        struct      svm_parameter    param;
+        struct      svm_problem      prob;
+        struct      svm_model        *model;
+        struct      svm_node         *x_space;
+        struct      svm_node         *x;
+        struct      svm_node         *question;
 
+        static      char *line = NULL;
+        static      int max_line_len;
+/*================================
+   @PARAMETERS
+==================================*/
+        string      input_file_name;
+        int         dimension                   = 3;
+        CSerial     serial;
+        int         max_nr_attr                 = 64;
+        int         predict_probability         = 0;
+        static int (*info)(const char *fmt,...) = &printf;
+        int         serialEnable                = 0;
+
+/*==============================================================
+   @FUNCTION
+================================================================*/
 static char* readline(FILE *input){
 	int len;
 
@@ -91,7 +103,6 @@ void options(){
 	param.nr_weight = 0;
 	param.weight_label = NULL;
 	param.weight = NULL;
-
 }
 
 // read in a problem (in svmlight format)
@@ -354,6 +365,34 @@ void serial_sent_double(double input){
         Sleep(40);
 }
 
+void serial_receive(){
+    int nBytesRead = 0,buf_idx =0;
+    while(1){
+        if (serial.Open(4, 9600)&&serialEnable==1){
+             char* lpBuffer = new char[500];
+             char myrightBuffer[500];
+             while(1){
+                nBytesRead = serial.ReadData(lpBuffer, 500);
+                char *start = strstr(lpBuffer, "R");
+
+                if(start) {
+                        char *endptr = strstr(lpBuffer,"+");
+                        strncpy(myrightBuffer, start, endptr-start);
+                        break;
+                    }
+                }
+            cout <<"[MSP430]> "<< myrightBuffer << endl;
+            serialEnable = 0;
+            delete []lpBuffer;
+            break;
+        }
+    }
+}
+
+
+/*==============================================================
+   @MAIN
+================================================================*/
 int main(){
 // ====================================
 // Initialize
@@ -450,21 +489,28 @@ int main(){
             cout << "==================="<<endl;
             cout << " Classification on New Data input " <<endl;
             cout << "==================="<<endl;
-            int expect=-1;
             double temp;
+            question = (struct svm_node *) realloc(x,(dimension+1)*sizeof(struct svm_node));
             while(1){
             cout << " INPUT TEST VECTOR" << endl;
             for(int i = 0 ; i < dimension ; i++){
                 cout << "   X[" << i << "].index = " << i+1 <<endl;
                 cout << "   X[" << i << "].value = ";
                 cin >> temp;
+                question[i].index = i+1;
+                question[i].value = temp;
                 serial_sent_double(temp);
                 cout << endl;
             }
-//            cout << endl;
-//            cout << "   EXPECT RESULT ??  = > ";
-//            cin >> expect;
-//            serial_sent_int(expect);
+            //Set Last index of question
+            question[dimension].index = -1;
+            question[dimension].value = 0;
+            //Desktop Result
+            cout << "[desktop] Result : " << svm_predict(model,question) <<endl ;
+            //Wait for Microcontroller Result
+            serialEnable = 1;
+            serial_receive();
+
             cout << endl;
             cout << "==================="<<endl;
             cout << endl;
