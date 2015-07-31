@@ -11,10 +11,12 @@ The purpose of this program is to shorten the SVM code as much as possible
 for the implementation prototype on FPGA or Microcontroller.
 
 ### Requirement 
-** Desktop Side ** 
+**Desktop Side**
 
 1. Windows 7 (According to serial transmission Library)
-2. CODE::BLOCK (IDE for C++/C)  - Project files formatted for code:Block
+2. SFML Library - for Thread computing support (since code:block's MingW(GCC) is not support std::Thread) 
+  - [SFML](http://www.sfml-dev.org/download.php) -Please Select 32-Bit - code:block set path to = C:\SFML-2.3
+3. CODE::BLOCK (IDE for C++/C)  - Project files formatted for code:Block
   - [CODE:BLOCK](http://www.codeblocks.org/downloads)
 
 **Microcontroller Side**
@@ -40,6 +42,8 @@ for the implementation prototype on FPGA or Microcontroller.
 * For the inputs we will read from the example input files which provide in this package
   - input1
   - input4c
+  - iris
+  - iris_norm  -> (4 class - demo tested here)
 * Program will ask you to insert the value of classes and dimensions
 * There are some parameter which need to be set before compiling and running 
 
