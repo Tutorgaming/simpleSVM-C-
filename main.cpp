@@ -23,6 +23,10 @@
 #include "svm.h"
 #include "Serial.h"
 
+//Plot Stuff
+#include <SFML/System.hpp>
+#include <SFML/Graphics.hpp>
+
 #define Malloc(type,n) (type *)malloc((n)*sizeof(type))
 
 using namespace std;
@@ -366,26 +370,25 @@ void serial_sent_double(double input){
 }
 
 void serial_receive(){
-    int nBytesRead = 0,buf_idx =0;
+    int nBytesRead = 0,buf_idx =0,found = 0;
     while(1){
         if (serial.Open(4, 9600)&&serialEnable==1){
              char* lpBuffer = new char[500];
              char myrightBuffer[500];
-             while(1){
+             while(found == 0){
                 nBytesRead = serial.ReadData(lpBuffer, 500);
                 char *start = strstr(lpBuffer, "R");
-
+                char *endptr = strstr(lpBuffer,"+");
                 if(start) {
-                        char *endptr = strstr(lpBuffer,"+");
                         strncpy(myrightBuffer, start, endptr-start);
                         break;
                     }
                 }
-            cout <<"[MSP430]> "<< myrightBuffer << endl;
-            serialEnable = 0;
-            delete []lpBuffer;
-            break;
-        }
+                    cout <<"[MSP430]> "<< myrightBuffer << endl;
+                    serialEnable = 0;
+
+             delete []lpBuffer;
+            }
     }
 }
 
@@ -489,6 +492,9 @@ int main(){
             cout << "==================="<<endl;
             cout << " Classification on New Data input " <<endl;
             cout << "==================="<<endl;
+            // Serial Thread
+                sf::Thread receiver(&serial_receive);
+                receiver.launch();
             double temp;
             question = (struct svm_node *) realloc(x,(dimension+1)*sizeof(struct svm_node));
             while(1){
@@ -507,9 +513,10 @@ int main(){
             question[dimension].value = 0;
             //Desktop Result
             cout << "[desktop] Result : " << svm_predict(model,question) <<endl ;
-            //Wait for Microcontroller Result
-            serialEnable = 1;
-            serial_receive();
+             //Wait for Serial Response From MSP430
+                serialEnable = 1;
+                while(serialEnable ==1);
+                cout <<endl;
 
             cout << endl;
             cout << "==================="<<endl;
